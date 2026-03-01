@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef, useCallback } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useData } from "@/components/prodex/data-provider"
 import { PriorityBadge } from "@/components/prodex/priority-badge"
 import { generateId, type Task, type Priority, type TaskStatus } from "@/lib/store"
@@ -18,7 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Clock, GripVertical, Plus, Search } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Clock, GripVertical, MoreHorizontal, Plus, Search } from "lucide-react"
 
 const columns: { key: TaskStatus; label: string }[] = [
   { key: "todo", label: "To Do" },
@@ -46,6 +53,14 @@ export default function TasksPage() {
   const [newEstimatedHours, setNewEstimatedHours] = useState("")
   const [newDeadline, setNewDeadline] = useState("")
   const [newWeek, setNewWeek] = useState("")
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editDescription, setEditDescription] = useState("")
+  const [editPriority, setEditPriority] = useState<Priority>("medium")
+  const [editStatus, setEditStatus] = useState<TaskStatus>("todo")
+  const [editEstimatedHours, setEditEstimatedHours] = useState("")
+  const [editDeadline, setEditDeadline] = useState("")
+  const [editWeek, setEditWeek] = useState("")
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
@@ -117,6 +132,46 @@ export default function TasksPage() {
     setDragId(null)
     setDropTarget(null)
   }, [])
+
+  const handlePriorityChange = useCallback((taskId: string, priority: Priority) => {
+    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, priority } : task)))
+  }, [setTasks])
+
+  const handleDeleteTask = useCallback((taskId: string) => {
+    setTasks((prev) => prev.filter((task) => task.id !== taskId))
+  }, [setTasks])
+
+  const openEditModal = useCallback((task: Task) => {
+    setEditingTaskId(task.id)
+    setEditTitle(task.title)
+    setEditDescription(task.description || "")
+    setEditPriority(task.priority)
+    setEditStatus(task.status)
+    setEditEstimatedHours(task.estimatedHours ? String(task.estimatedHours) : "")
+    setEditDeadline(task.deadline || "")
+    setEditWeek(task.week || "")
+  }, [])
+
+  const handleSaveEdit = useCallback(() => {
+    if (!editingTaskId) return
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === editingTaskId
+          ? {
+              ...task,
+              title: editTitle.trim() || task.title,
+              description: editDescription.trim(),
+              priority: editPriority,
+              status: editStatus,
+              estimatedHours: parseFloat(editEstimatedHours) || 0,
+              deadline: editDeadline,
+              week: editWeek,
+            }
+          : task
+      )
+    )
+    setEditingTaskId(null)
+  }, [editingTaskId, editDeadline, editDescription, editEstimatedHours, editPriority, editStatus, editTitle, editWeek, setTasks])
 
   return (
     <div className="flex flex-col gap-6">
@@ -206,6 +261,9 @@ export default function TasksPage() {
                       isDragging={dragId === task.id}
                       onDragStart={() => handleDragStart(task.id)}
                       onDragEnd={handleDragEnd}
+                      onSetPriority={(priority) => handlePriorityChange(task.id, priority)}
+                      onDelete={() => handleDeleteTask(task.id)}
+                      onEdit={() => openEditModal(task)}
                     />
                   ))
                 )}
@@ -321,6 +379,110 @@ export default function TasksPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Task Modal */}
+      <Dialog open={!!editingTaskId} onOpenChange={(open) => { if (!open) setEditingTaskId(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-card-foreground">Title</label>
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-card-foreground">Description</label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] resize-none"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-card-foreground">Priority</label>
+                <Select value={editPriority} onValueChange={(v) => setEditPriority(v as Priority)}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-card-foreground">Status</label>
+                <Select value={editStatus} onValueChange={(v) => setEditStatus(v as TaskStatus)}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todo">Todo</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-card-foreground">Estimated Hours</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={editEstimatedHours}
+                  onChange={(e) => setEditEstimatedHours(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-card-foreground">Deadline</label>
+                <input
+                  type="date"
+                  value={editDeadline}
+                  onChange={(e) => setEditDeadline(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-card-foreground">Assign to Week</label>
+              <input
+                type="date"
+                value={editWeek}
+                onChange={(e) => setEditWeek(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <button
+              onClick={() => setEditingTaskId(null)}
+              className="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-card-foreground hover:bg-muted transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveEdit}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              Save Changes
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -330,11 +492,17 @@ function TaskCard({
   isDragging,
   onDragStart,
   onDragEnd,
+  onSetPriority,
+  onDelete,
+  onEdit,
 }: {
   task: Task
   isDragging: boolean
   onDragStart: () => void
   onDragEnd: () => void
+  onSetPriority: (priority: Priority) => void
+  onDelete: () => void
+  onEdit: () => void
 }) {
   return (
     <div
@@ -354,6 +522,36 @@ function TaskCard({
           <GripVertical className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
           <h4 className="text-sm font-medium text-card-foreground leading-snug">{task.title}</h4>
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-card-foreground"
+              aria-label="Task actions"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            onClick={(e) => e.stopPropagation()}
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
+            <DropdownMenuItem onClick={() => onSetPriority("critical")}>Critical</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onSetPriority("high")}>High</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onSetPriority("medium")}>Medium</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onSetPriority("low")}>Low</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
+            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div className="flex flex-wrap items-center gap-2 pl-6">
         <PriorityBadge priority={task.priority} />

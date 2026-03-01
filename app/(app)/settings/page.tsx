@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useData } from "@/components/prodex/data-provider"
 import { Switch } from "@/components/ui/switch"
 import {
@@ -24,9 +24,9 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("profile")
 
   // Profile local state — sync from context
-  const [fullName, setFullName] = useState(settings.fullName || "Alex Morgan")
-  const [email, setEmail] = useState(settings.email || "alex.morgan@prodex.io")
-  const [timezone, setTimezone] = useState(settings.timezone || "EST")
+  const [fullName, setFullName] = useState(settings.fullName || "")
+  const [email, setEmail] = useState(settings.email || "")
+  const [timezone, setTimezone] = useState(settings.timezone || "UTC")
 
   // Preferences local state
   const [weeklyCapacity, setWeeklyCapacity] = useState(settings.weeklyCapacity.toString())
@@ -43,6 +43,15 @@ export default function SettingsPage() {
 
   // Save state
   const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    setFullName(settings.fullName || "")
+    setEmail(settings.email || "")
+    setTimezone(settings.timezone || "UTC")
+    setWeeklyCapacity(settings.weeklyCapacity.toString())
+    setShowOverload(settings.showOverloadWarnings)
+    setEnableReminders(settings.enableDeadlineReminders)
+  }, [settings])
 
   const handleSave = () => {
     if (activeSection === "profile") {
@@ -237,6 +246,7 @@ export default function SettingsPage() {
             )}
           </div>
         </div>
+
       </div>
     </div>
   )

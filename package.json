@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -n frontend,backend -c blue,green \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "next dev",
+    "dev:backend": "npm --prefix server run dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
@@ -62,6 +64,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",

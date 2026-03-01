@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+  archived
+}
+
+enum Priority {
+  low
+  medium
+  high
+  critical
+}
+
+enum GoalCategory {
+  technical
+  leadership
+  education
+  network
+  other
+}
+
+enum GoalStatus {
+  active
+  achieved
+  paused
+  abandoned
+}
+
+enum ApplicationStatus {
+  saved
+  applied
+  phone_screen
+  interview
+  offer
+  rejected
+  withdrawn
+}
+
+enum MilestoneStatus {
+  pending
+  completed
+}
+
+model User {
+  id                   String           @id @default(uuid())
+  email                String           @unique
+  passwordHash         String
+  fullName             String
+  weeklyCapacityHours  Decimal          @default(40) @db.Decimal(4, 1)
+  timezone             String           @default("UTC")
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  tasks                Task[]
+  timeLogs             TimeLog[]
+  tags                 Tag[]
+  workloadWeeks        WorkloadWeek[]
+  careerGoals          CareerGoal[]
+  jobApplications      JobApplication[]
+  skills               Skill[]
+}
+
+model Task {
+  id             String       @id @default(uuid())
+  userId         String
+  title          String
+  description    String?
+  status         TaskStatus   @default(todo)
+  priority       Priority     @default(medium)
+  estimatedHours Decimal      @default(0) @db.Decimal(5, 2)
+  actualHours    Decimal      @default(0) @db.Decimal(5, 2)
+  deadline       DateTime?
+  weekStart      DateTime?
+  parentTaskId   String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentTask     Task?        @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subtasks       Task[]       @relation("TaskSubtasks")
+  timeLogs       TimeLog[]
+  taskTags       TaskTag[]
+
+  @@index([userId, weekStart])
+  @@index([userId, status])
+  @@index([userId, deadline])
+}
+
+model TimeLog {
+  id          String    @id @default(uuid())
+  taskId       String
+  userId       String
+  loggedHours  Decimal   @db.Decimal(5, 2)
+  logDate      DateTime
+  note         String?
+  createdAt    DateTime  @default(now())
+
+  task         Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, logDate])
+  @@index([userId, logDate])
+}
+
+model Tag {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  colorHex    String?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskTags    TaskTag[]
+
+  @@unique([userId, name])
+}
+
+model TaskTag {
+  taskId      String
+  tagId       String
+  createdAt   DateTime  @default(now())
+
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tag         Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, tagId])
+}
+
+model WorkloadWeek {
+  id                   String    @id @default(uuid())
+  userId               String
+  weekStart            DateTime
+  totalEstimatedHours  Decimal   @default(0) @db.Decimal(6, 2)
+  totalActualHours     Decimal   @default(0) @db.Decimal(6, 2)
+  capacityHours        Decimal   @default(40) @db.Decimal(4, 1)
+  overloadFlag         Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId, weekStart])
+}
+
+model CareerGoal {
+  id           String         @id @default(uuid())
+  userId       String
+  title        String
+  description  String?
+  category     GoalCategory
+  status       GoalStatus     @default(active)
+  targetDate   DateTime?
+  progressPct  Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  milestones   CareerMilestone[]
+
+  @@index([userId, status])
+}
+
+model CareerMilestone {
+  id            String          @id @default(uuid())
+  goalId         String
+  title          String
+  status         MilestoneStatus @default(pending)
+  dueDate        DateTime?
+  completedDate  DateTime?
+  createdAt      DateTime        @default(now())
+
+  goal           CareerGoal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, status])
+}
+
+model JobApplication {
+  id           String             @id @default(uuid())
+  userId       String
+  companyName  String
+  roleTitle    String
+  status       ApplicationStatus  @default(saved)
+  appliedDate  DateTime?
+  jobUrl       String?
+  notes        String?
+  salaryMin    Int?
+  salaryMax    Int?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events       ApplicationEvent[]
+
+  @@index([userId, status])
+}
+
+model ApplicationEvent {
+  id             String          @id @default(uuid())
+  applicationId  String
+  eventType      String
+  eventDate      DateTime
+  notes          String?
+  createdAt      DateTime        @default(now())
+
+  application    JobApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId, eventDate])
+}
+
+model Skill {
+  id            String           @id @default(uuid())
+  userId        String
+  name          String
+  category      GoalCategory
+  createdAt     DateTime         @default(now())
+
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessments   SkillAssessment[]
+
+  @@unique([userId, name])
+}
+
+model SkillAssessment {
+  id            String     @id @default(uuid())
+  skillId       String
+  rating        Int
+  assessedAt    DateTime   @default(now())
+
+  skill         Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@index([skillId, assessedAt])
+}
+
+model ResourceCategory {
+  id            String      @id @default(uuid())
+  name          String
+  slug          String      @unique
+  description   String?
+  displayOrder  Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  resources     Resource[]
+
+  @@index([displayOrder, name])
+}
+
+model Resource {
+  id            String            @id @default(uuid())
+  categoryId    String
+  title         String
+  description   String?
+  url           String
+  tags          String[]          @default([])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  category      ResourceCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([categoryId, title])
+}
