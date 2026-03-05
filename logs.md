@@ -135,3 +135,20 @@
 135. Re-ran backend TypeScript build after backend test setup finalization; build passed.
 136. Provided deployment guide for full-stack setup (frontend + backend + Neon DB) including environment variables and production rollout steps.
 137. Verified user is in correct project directory and confirmed pending git changes before deployment push.
+138. Confirmed git commit and push to GitHub main branch succeeded (`f938d6f`) for deployment-ready code.
+139. Provided beginner-friendly, fully free deployment guide (Neon + Render + Vercel) with click-by-click steps and explanations.
+140. Guided user at Render 'New Web Service' step to connect GitHub provider and proceed with repo selection for free backend deployment.
+141. Diagnosed Render backend deploy failure (`Cannot find module .../server/dist/index`) and provided exact root/build/start configuration fix steps.
+142. Verified Render build/start commands are correctly set under server root and provided final steps to complete backend deployment.
+143. Confirmed Render environment variable `DATABASE_URL` is set and guided user to save, redeploy, and run Prisma production setup commands.
+144. Pointed user to Render Shell location in sidebar (Manage -> Shell) and clarified to open it after deployment turns live.
+145. Guided user to diagnose failed Render deployment first via build/runtime logs before shell access, since shell is unavailable on failed revisions.
+146. Confirmed Render free plan shell/SSH limitation from user screenshot and switched guidance to no-shell deployment path using pre-deploy commands and local fallback.
+147. Provided alternatives to Render free deployment and clarified Vercel free suitability for current split frontend+Express backend architecture.
+148. Continued Render-first deployment guidance using free-plan flow (no shell) with pre-deploy migration/seed and manual redeploy steps.
+149. Identified locked Pre-Deploy command in Render settings and switched to local migration/seed fallback against Neon before redeploy.
+150. Diagnosed Render runtime failure caused by backend start script path mismatch (`dist/index.js` vs built `dist/src/index.js`).
+151. Updated backend start script in `server/package.json` to `node dist/src/index.js` for Render runtime compatibility.
+152. Re-ran backend build and backend tests after start-script fix; build passed and backend tests passed (11/11).
+153. Diagnosed repeated Render failure as deployment of older commit (`f938d6f`) still using outdated start script (`node dist/index.js`) instead of latest fix.
+154. Confirmed from Render logs that runtime is still executing `node dist/index.js`; instructed direct Render start-command override to `node dist/src/index.js` and redeploy.
