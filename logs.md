@@ -152,3 +152,6 @@
 152. Re-ran backend build and backend tests after start-script fix; build passed and backend tests passed (11/11).
 153. Diagnosed repeated Render failure as deployment of older commit (`f938d6f`) still using outdated start script (`node dist/index.js`) instead of latest fix.
 154. Confirmed from Render logs that runtime is still executing `node dist/index.js`; instructed direct Render start-command override to `node dist/src/index.js` and redeploy.
+155. Verified Render settings now point Start Command to `node dist/src/index.js` and instructed user to save changes and redeploy latest commit.
+156. Confirmed Render backend deployment is live (green deploy status for commit 7a10822) and proceeded to frontend deployment guidance.
+157. Diagnosed Vercel deployment failure as pnpm frozen-lockfile mismatch due outdated `pnpm-lock.yaml` vs current `package.json`; provided npm-based deployment fix.
