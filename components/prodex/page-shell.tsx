@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/components/prodex/auth-provider"
+import { useTheme } from "next-themes"
 import {
   LayoutDashboard,
   CheckSquare,
@@ -18,6 +19,8 @@ import {
   Zap,
   Bell,
   LogOut,
+  Moon,
+  Sun,
 } from "lucide-react"
 
 const navItems = [
@@ -45,6 +48,7 @@ const pageTitles: Record<string, string> = {
 export function PageShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { logout } = useAuth()
+  const { theme, setTheme } = useTheme()
   const pageTitle = pageTitles[pathname] || (pathname.startsWith("/resources/") ? "Resources" : "Prodex")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -62,17 +66,17 @@ export function PageShell({ children }: { children: React.ReactNode }) {
       {/* Slide-in sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-primary text-primary-foreground shadow-2xl transition-transform duration-200",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar text-sidebar-foreground shadow-2xl transition-transform duration-200",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center gap-2.5 border-b border-white/10 px-6 py-6">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
+        <div className="flex items-center gap-2.5 border-b border-sidebar-border px-6 py-6">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-accent">
             <Zap className="h-5 w-5 text-accent" />
           </div>
           <div>
-            <p className="text-lg font-bold text-primary-foreground">Prodex</p>
-            <p className="text-xs text-primary-foreground/70">Productivity OS</p>
+            <p className="text-lg font-bold text-sidebar-foreground">Prodex</p>
+            <p className="text-xs text-sidebar-foreground/70">Productivity OS</p>
           </div>
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
@@ -84,10 +88,10 @@ export function PageShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ease-out will-change-transform hover:scale-[1.03] active:scale-[0.98]",
                   isActive
-                    ? "bg-white/15 text-primary-foreground shadow-sm"
-                    : "text-primary-foreground/70 hover:bg-white/10 hover:text-primary-foreground"
+                    ? "bg-sidebar-accent text-sidebar-foreground shadow-sm"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 )}
               >
                 <item.icon className="h-5 w-5" />
@@ -96,7 +100,7 @@ export function PageShell({ children }: { children: React.ReactNode }) {
             )
           })}
         </nav>
-        <div className="border-t border-white/10 px-4 py-3 text-xs text-primary-foreground/65">
+        <div className="border-t border-sidebar-border px-4 py-3 text-xs text-sidebar-foreground/65">
           Stay focused. Track progress daily.
         </div>
       </aside>
@@ -117,6 +121,14 @@ export function PageShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors"
+              aria-label="Toggle dark mode"
+            >
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
             <button className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors" aria-label="Notifications">
               <Bell className="h-5 w-5" />
             </button>

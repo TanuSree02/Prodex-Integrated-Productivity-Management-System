@@ -237,3 +237,45 @@
 237. Wired header Sign Out button to auth context `logout()` from `components/prodex/auth-provider.tsx` so users can sign out directly from dashboard/app pages.
 238. Ran full test suite (`npm test`) after header logout addition; all tests passed (20/20).
 239. Updated top-right Sign Out button color in `components/prodex/page-shell.tsx` to dark blue (`#1F3E69`) with matching border and darker hover state.
+240. Diagnosed empty Skills UI in production as empty `SkillCatalog` master table in Neon; provided direct SQL backfill so skills load immediately without redeploy.
+241. Fixed likely Skills save 500 by updating `server/src/index.ts` to avoid partial-index conflict target in catalog-skill insert (`ON CONFLICT DO NOTHING` instead of explicit columns).
+242. Added backend password-change API in `server/src/index.ts`: `POST /api/v1/auth/change-password` with validation, current-password check, and hash update.
+243. Wired Settings password section in `app/(app)/settings/page.tsx` to real backend password-change API with proper loading/error/success handling.
+244. Added dark mode infrastructure by wrapping providers with theme support in `components/prodex/providers.tsx` and hydration-safe root html in `app/layout.tsx`.
+245. Added dark color tokens/background treatment in `app/globals.css` and theme toggle button in `components/prodex/page-shell.tsx`.
+246. Added search field/filtering in Applications page (`app/(app)/applications/page.tsx`) to search by company, role, status, and notes.
+247. Improved workload behavior by making new tasks default to current week in `app/(app)/tasks/page.tsx`, so workload updates when adding tasks.
+248. Improved workload clarity in `app/(app)/workload/page.tsx` with explicit explanation and week fallback to task creation date when week is missing.
+249. Hardened skills save fallback detection in `server/src/index.ts` to handle schema drift cases involving `customSkillName` and old `skillId` NOT NULL constraints.
+250. Ran full test suite (`npm test`); all tests passed (20/20).
+251. Ran backend TypeScript build (`npm run build` in `server`); build passed.
+252. Fixed profile/settings payload returned by backend `getData` in `server/src/index.ts` to include real `fullName` and `email` instead of blank values.
+253. Updated settings sync in `server/src/index.ts` to persist `fullName`, `email`, `timezone`, and `weeklyCapacityHours` together with normalization.
+254. Added email update conflict handling in `server/src/index.ts` during sync (`P2002` -> `409 Email already in use`).
+255. Ensured timezone persistence logic uses selected value directly, preventing IST from being reset to UTC by default fallback behavior.
+256. Ran full test suite (`npm test`); all tests passed (20/20).
+257. Ran backend TypeScript build (`npm run build` in `server`); build passed.
+258. Fixed Profile form reset bug in `app/(app)/settings/page.tsx` by adding dirty-state guards (`profileDirty`, `preferencesDirty`) to prevent in-progress input from being overwritten by background settings sync updates.
+259. Updated Profile/Preferences field handlers in `app/(app)/settings/page.tsx` to mark sections dirty on user edits so each input keeps its own typed value.
+260. Updated Save logic in `app/(app)/settings/page.tsx` to clear dirty flags after successful profile/preferences save, preserving expected re-hydration behavior.
+261. Ran full test suite (`npm test`) after Settings form-state fix; all tests passed (20/20).
+262. Updated settings form hydration in `app/(app)/settings/page.tsx` to wait until data loading completes before populating profile fields from backend state.
+263. Disabled browser autofill for Profile Full Name and Email inputs in `app/(app)/settings/page.tsx` to prevent automatic non-DB prefilled values.
+264. Preserved server-driven profile loading behavior so fields only show values returned from logged-in user's backend settings payload.
+265. Ran full test suite (`npm test`) after profile autofill/hydration fix; all tests passed (20/20).
+266. Updated dark-mode color tokens in `app/globals.css` to requested palette: sidebar `#0F172A`, main background `#020617`, card background `#1E293B`, and light text.
+267. Updated dark-mode sidebar hover/active accent in `app/globals.css` to slightly lighter tone (`#1E293B`) as requested.
+268. Refactored sidebar styling in `components/prodex/page-shell.tsx` to use sidebar theme tokens instead of primary color, applying the new dark sidebar across Dashboard/Tasks/Applications/Career/Resources/Settings.
+269. Verified no layout changes were introduced; updates were color-token and class-only.
+270. Ran full test suite (`npm test`) after dark sidebar color update; all tests passed (20/20).
+271. Updated Skills icon rendering in `app/(app)/career/page.tsx` to use skill-specific, logo-like icons per skill key (Python, React, AWS, Docker, Git, MongoDB, PostgreSQL, Node.js, Next.js, C++, SQL, API, etc.) while keeping existing card/grid layout unchanged.
+272. Added icon normalization logic in `app/(app)/career/page.tsx` so skills map to correct icon even when based on skill name fallback.
+273. Added explicit generic fallback icon strategy in `app/(app)/career/page.tsx` (database/code/cpu variants) so no skill card renders without an icon.
+274. Kept custom skills (`Other`) on generic icon path in `app/(app)/career/page.tsx` per requirement.
+275. Preserved selected/unselected icon visibility with colored active state and muted inactive state for dark-mode readability.
+276. Ran full test suite (`npm test`) after skills icon update; all tests passed (20/20).
+277. Re-validated Skills icon UI update on request: confirmed `app/(app)/career/page.tsx` keeps existing card/grid layout and test suite remains passing (20/20).
+278. Added smooth hover scale animation to sidebar navigation items in `/components/prodex/page-shell.tsx` so Dashboard/Tasks/Workload/Applications/Career/Resources/Support/Settings slightly grow on mouse-over and return on mouse-out.
+279. Added global button press animation in `/app/globals.css` using active-state scale down (`scale(0.97)`) with smooth transitions to create tactile click feedback.
+280. Ran full test suite (`npm test`); all tests passed (20/20) after sidebar/button animation updates.
+281. Re-ran full test suite (`npm test -- --run`) on latest code; all test files passed (4/4) and all tests passed (20/20).

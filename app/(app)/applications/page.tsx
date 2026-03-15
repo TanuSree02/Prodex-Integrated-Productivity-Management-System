@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useData } from "@/components/prodex/data-provider"
 import { EmptyState } from "@/components/prodex/empty-state"
 import { generateId, type Application, type ApplicationStatus } from "@/lib/store"
@@ -24,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Briefcase, MoreHorizontal, Plus } from "lucide-react"
+import { Briefcase, MoreHorizontal, Plus, Search } from "lucide-react"
 
 const applicationStatuses: { value: ApplicationStatus; label: string }[] = [
   { value: "saved", label: "Saved" },
@@ -55,6 +55,7 @@ export default function ApplicationsPage() {
   const [appDate, setAppDate] = useState("")
   const [appUrl, setAppUrl] = useState("")
   const [appNotes, setAppNotes] = useState("")
+  const [search, setSearch] = useState("")
   const [editingAppId, setEditingAppId] = useState<string | null>(null)
   const [editAppCompany, setEditAppCompany] = useState("")
   const [editAppRole, setEditAppRole] = useState("")
@@ -127,6 +128,19 @@ export default function ApplicationsPage() {
     setEditingAppId(null)
   }
 
+  const filteredApplications = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    if (!term) return applications
+    return applications.filter((app) => {
+      return (
+        app.company.toLowerCase().includes(term)
+        || app.role.toLowerCase().includes(term)
+        || app.status.toLowerCase().includes(term)
+        || app.notes.toLowerCase().includes(term)
+      )
+    })
+  }, [applications, search])
+
   return (
     <div className="flex flex-col gap-6">
       <section className="prodex-surface bg-gradient-to-r from-primary/[0.03] via-accent/[0.04] to-primary/[0.03] p-5">
@@ -145,12 +159,23 @@ export default function ApplicationsPage() {
         </button>
       </div>
 
-      {applications.length === 0 ? (
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search applications..."
+          className="prodex-input h-9 w-full pl-9"
+        />
+      </div>
+
+      {filteredApplications.length === 0 ? (
         <div className="prodex-surface p-5">
           <EmptyState
             icon={<Briefcase className="h-10 w-10" />}
-            title="No applications yet"
-            message="Start tracking your job search."
+            title={applications.length === 0 ? "No applications yet" : "No matching applications"}
+            message={applications.length === 0 ? "Start tracking your job search." : "Try a different search term."}
           />
         </div>
       ) : (
@@ -162,7 +187,7 @@ export default function ApplicationsPage() {
             <span>Date Applied</span>
             <span className="text-right">Actions</span>
           </div>
-          {applications.map((app) => (
+          {filteredApplications.map((app) => (
             <ApplicationRow
               key={app.id}
               app={app}

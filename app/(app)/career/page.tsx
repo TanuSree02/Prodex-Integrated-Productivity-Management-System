@@ -40,17 +40,12 @@ import {
   Code2,
   Database,
   Atom,
-  Server,
-  Binary,
   Cloud,
   GitBranch,
   Braces,
-  Brain,
-  BarChart3,
-  Rocket,
-  Coffee,
+  Cpu,
+  Wrench,
   Sparkles,
-  type LucideIcon,
 } from "lucide-react"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
@@ -80,28 +75,24 @@ type SkillCatalogItem = {
   custom?: boolean
 }
 
-const skillIconMap: Record<string, LucideIcon> = {
-  python: Code2,
-  sql: Database,
-  react: Atom,
-  nextjs: Rocket,
-  nodejs: Server,
-  java: Coffee,
-  cpp: Binary,
-  cloud: Cloud,
-  aws: Cloud,
-  docker: Server,
-  git: GitBranch,
-  postgresql: Database,
-  mongodb: Database,
-  api: Braces,
-  "machine-learning": Brain,
-  "data-science": BarChart3,
-  pytorch: Brain,
-  pyspark: BarChart3,
-  typescript: Code2,
-  graphql: Braces,
-  other: Sparkles,
+function normalizeSkillKey(icon: string, name: string): string {
+  const iconKey = (icon || "").toLowerCase().trim()
+  if (iconKey) return iconKey
+  const n = name.toLowerCase().trim()
+  if (n.includes("python")) return "python"
+  if (n.includes("react")) return "react"
+  if (n.includes("next")) return "nextjs"
+  if (n.includes("node")) return "nodejs"
+  if (n.includes("postgre")) return "postgresql"
+  if (n.includes("mongo")) return "mongodb"
+  if (n.includes("docker")) return "docker"
+  if (n.includes("java")) return "java"
+  if (n.includes("git")) return "git"
+  if (n.includes("aws")) return "aws"
+  if (n.includes("sql")) return "sql"
+  if (n.includes("c++")) return "cpp"
+  if (n.includes("api")) return "api"
+  return "other"
 }
 
 export default function CareerPage() {
@@ -795,8 +786,132 @@ function GoalCard({
 }
 
 function SkillIcon({ icon, name, selected }: { icon: string; name: string; selected: boolean }) {
-  const Icon = skillIconMap[(icon || "").toLowerCase()] || BookOpen
-  return (
-    <Icon className={`h-4 w-4 ${selected ? "text-primary" : "text-muted-foreground"}`} aria-hidden="true" />
-  )
+  const key = normalizeSkillKey(icon, name)
+  const muted = "#94a3b8"
+  const active = {
+    python: "#3776AB",
+    sql: "#2563eb",
+    react: "#61DAFB",
+    nextjs: "#ffffff",
+    nodejs: "#339933",
+    aws: "#FF9900",
+    docker: "#2496ED",
+    git: "#F05032",
+    java: "#EA4335",
+    mongodb: "#47A248",
+    postgresql: "#336791",
+    cpp: "#00599C",
+    api: "#0EA5E9",
+    other: "#A78BFA",
+  } as const
+  const color = selected ? (active[key as keyof typeof active] || "#60A5FA") : muted
+
+  if (key === "python") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <rect x="3" y="3" width="10" height="9" rx="3" fill={selected ? "#3776AB" : muted} />
+        <rect x="11" y="12" width="10" height="9" rx="3" fill={selected ? "#FFD43B" : muted} />
+        <circle cx="8.2" cy="6.9" r="1" fill="#fff" />
+        <circle cx="15.8" cy="17.1" r="1" fill="#fff" />
+      </svg>
+    )
+  }
+
+  if (key === "docker") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <rect x="4" y="10" width="3" height="3" rx="0.6" fill={color} />
+        <rect x="7.5" y="10" width="3" height="3" rx="0.6" fill={color} />
+        <rect x="11" y="10" width="3" height="3" rx="0.6" fill={color} />
+        <rect x="7.5" y="6.5" width="3" height="3" rx="0.6" fill={color} />
+        <rect x="11" y="6.5" width="3" height="3" rx="0.6" fill={color} />
+        <path d="M3 14.5h13.8c-.8 2.8-2.8 4-5.8 4H8.2c-2.1 0-4-1.2-5.2-4Z" fill={color} />
+      </svg>
+    )
+  }
+
+  if (key === "aws") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <text x="3" y="12.5" fontSize="8.2" fontWeight="700" fill={color}>aws</text>
+        <path d="M4 16c3.5 2.5 9.6 2.6 14.7.3" stroke={color} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (key === "nextjs") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" fill={selected ? "#fff" : muted} />
+        <path d="M8 16V8l8 8V8" stroke={selected ? "#000" : "#0f172a"} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (key === "nodejs") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <path d="M12 2.8 19.2 7v10L12 21.2 4.8 17V7Z" fill={color} />
+        <text x="9.1" y="15" fontSize="6.5" fontWeight="700" fill="#fff">N</text>
+      </svg>
+    )
+  }
+
+  if (key === "cpp") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <rect x="2.8" y="4" width="18.5" height="16" rx="3" fill={selected ? "#00599C" : muted} />
+        <text x="6.4" y="14.1" fontSize="6.3" fontWeight="700" fill="#fff">C++</text>
+      </svg>
+    )
+  }
+
+  if (key === "mongodb") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <path d="M12 3c2.4 3.1 4.1 6.2 4.1 9.4A4.1 4.1 0 1 1 7.9 12.4C7.9 9.2 9.6 6.1 12 3Z" fill={color} />
+        <path d="M12 6v11" stroke="#fff" strokeWidth="1" />
+      </svg>
+    )
+  }
+
+  if (key === "postgresql") {
+    return (
+      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+        <ellipse cx="12" cy="7.5" rx="5.7" ry="3.2" fill={color} />
+        <path d="M6.3 7.5v7.5c0 1.8 2.5 3.2 5.7 3.2s5.7-1.4 5.7-3.2V7.5" fill={color} />
+        <path d="M8.5 11.6c1.3-.7 5.8-.7 7 0" stroke="#fff" strokeWidth="1" />
+      </svg>
+    )
+  }
+
+  if (key === "react") {
+    return <Atom className="h-5 w-5" style={{ color }} aria-hidden="true" />
+  }
+  if (key === "git") {
+    return <GitBranch className="h-5 w-5" style={{ color }} aria-hidden="true" />
+  }
+  if (key === "sql") {
+    return <Database className="h-5 w-5" style={{ color }} aria-hidden="true" />
+  }
+  if (key === "api") {
+    return <Braces className="h-5 w-5" style={{ color }} aria-hidden="true" />
+  }
+  if (key === "java") {
+    return <Wrench className="h-5 w-5" style={{ color }} aria-hidden="true" />
+  }
+  if (key === "other") {
+    return <Sparkles className="h-5 w-5" style={{ color }} aria-hidden="true" />
+  }
+  if (key === "cloud") {
+    return <Cloud className="h-5 w-5" style={{ color }} aria-hidden="true" />
+  }
+
+  const fallback = name.toLowerCase().includes("data") || name.toLowerCase().includes("sql")
+    ? Database
+    : name.toLowerCase().includes("api") || name.toLowerCase().includes("code")
+      ? Code2
+      : Cpu
+  const FallbackIcon = fallback
+  return <FallbackIcon className="h-5 w-5" style={{ color }} aria-hidden="true" />
 }

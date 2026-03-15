@@ -13,6 +13,9 @@ import {
 import { User, Sliders, Lock, Eye, EyeOff, Check } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+const TOKEN_KEY = "prodex_token"
+
 const sections = [
   { key: "profile", label: "Profile", icon: User },
   { key: "preferences", label: "Preferences", icon: Sliders },
@@ -20,7 +23,7 @@ const sections = [
 ]
 
 export default function SettingsPage() {
-  const { settings, setSettings } = useData()
+  const { settings, setSettings, isLoading } = useData()
   const [activeSection, setActiveSection] = useState("profile")
 
   // Profile local state — sync from context
@@ -32,6 +35,8 @@ export default function SettingsPage() {
   const [weeklyCapacity, setWeeklyCapacity] = useState(settings.weeklyCapacity.toString())
   const [showOverload, setShowOverload] = useState(settings.showOverloadWarnings)
   const [enableReminders, setEnableReminders] = useState(settings.enableDeadlineReminders)
+  const [profileDirty, setProfileDirty] = useState(false)
+  const [preferencesDirty, setPreferencesDirty] = useState(false)
 
   // Password local state
   const [currentPassword, setCurrentPassword] = useState("")
@@ -43,17 +48,25 @@ export default function SettingsPage() {
 
   // Save state
   const [saved, setSaved] = useState(false)
+  const [passwordError, setPasswordError] = useState("")
+  const [passwordSuccess, setPasswordSuccess] = useState("")
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false)
 
   useEffect(() => {
-    setFullName(settings.fullName || "")
-    setEmail(settings.email || "")
-    setTimezone(settings.timezone || "UTC")
-    setWeeklyCapacity(settings.weeklyCapacity.toString())
-    setShowOverload(settings.showOverloadWarnings)
-    setEnableReminders(settings.enableDeadlineReminders)
-  }, [settings])
+    if (isLoading) return
+    if (!profileDirty) {
+      setFullName(settings.fullName || "")
+      setEmail(settings.email || "")
+      setTimezone(settings.timezone || "UTC")
+    }
+    if (!preferencesDirty) {
+      setWeeklyCapacity(settings.weeklyCapacity.toString())
+      setShowOverload(settings.showOverloadWarnings)
+      setEnableReminders(settings.enableDeadlineReminders)
+    }
+  }, [settings, profileDirty, preferencesDirty, isLoading])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (activeSection === "profile") {
       setSettings((prev) => ({
         ...prev,
@@ -61,6 +74,7 @@ export default function SettingsPage() {
         email: email.trim(),
         timezone,
       }))
+      setProfileDirty(false)
     } else if (activeSection === "preferences") {
       setSettings((prev) => ({
         ...prev,
@@ -68,8 +82,56 @@ export default function SettingsPage() {
         showOverloadWarnings: showOverload,
         enableDeadlineReminders: enableReminders,
       }))
+      setPreferencesDirty(false)
+    } else if (activeSection === "password") {
+      setPasswordError("")
+      setPasswordSuccess("")
+
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        setPasswordError("All password fields are required.")
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError("New passwords do not match.")
+        return
+      }
+
+      try {
+        setIsPasswordSaving(true)
+        const token = localStorage.getItem(TOKEN_KEY)
+        if (!token) {
+          setPasswordError("Please sign in again.")
+          return
+        }
+
+        const response = await fetch(`${API_BASE}/api/v1/auth/change-password`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            currentPassword,
+            newPassword,
+            confirmPassword,
+          }),
+        })
+
+        const json = await response.json().catch(() => ({}))
+        if (!response.ok) {
+          setPasswordError(json?.error || "Failed to update password.")
+          return
+        }
+
+        setCurrentPassword("")
+        setNewPassword("")
+        setConfirmPassword("")
+        setPasswordSuccess("Password changed successfully.")
+      } finally {
+        setIsPasswordSaving(false)
+      }
     }
-    // Password section: just show saved
+
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -108,8 +170,12 @@ export default function SettingsPage() {
                 <input
                   type="text"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    setProfileDirty(true)
+                    setFullName(e.target.value)
+                  }}
                   placeholder="Enter your name"
+                  autoComplete="off"
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
                 />
               </div>
@@ -118,14 +184,21 @@ export default function SettingsPage() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setProfileDirty(true)
+                    setEmail(e.target.value)
+                  }}
                   placeholder="Enter your email"
+                  autoComplete="off"
                   className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-card-foreground">Timezone</label>
-                <Select value={timezone} onValueChange={setTimezone}>
+                <Select value={timezone} onValueChange={(value) => {
+                  setProfileDirty(true)
+                  setTimezone(value)
+                }}>
                   <SelectTrigger className="bg-background">
                     <SelectValue />
                   </SelectTrigger>
@@ -150,17 +223,26 @@ export default function SettingsPage() {
                   min="1"
                   max="168"
                   value={weeklyCapacity}
-                  onChange={(e) => setWeeklyCapacity(e.target.value)}
+                  onChange={(e) => {
+                    setPreferencesDirty(true)
+                    setWeeklyCapacity(e.target.value)
+                  }}
                   className="h-9 w-32 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
                 />
               </div>
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-card-foreground">Show overload warnings</label>
-                <Switch checked={showOverload} onCheckedChange={setShowOverload} />
+                <Switch checked={showOverload} onCheckedChange={(checked) => {
+                  setPreferencesDirty(true)
+                  setShowOverload(checked)
+                }} />
               </div>
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-card-foreground">Enable deadline reminders</label>
-                <Switch checked={enableReminders} onCheckedChange={setEnableReminders} />
+                <Switch checked={enableReminders} onCheckedChange={(checked) => {
+                  setPreferencesDirty(true)
+                  setEnableReminders(checked)
+                }} />
               </div>
             </div>
           )}
@@ -228,15 +310,26 @@ export default function SettingsPage() {
                   </button>
                 </div>
               </div>
+              {passwordError && (
+                <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  {passwordError}
+                </p>
+              )}
+              {passwordSuccess && (
+                <p className="rounded-md border border-[#2ECC71]/30 bg-[#2ECC71]/10 px-3 py-2 text-sm text-[#2ECC71]">
+                  {passwordSuccess}
+                </p>
+              )}
             </div>
           )}
 
           <div className="mt-6 flex items-center gap-3">
             <button
               onClick={handleSave}
+              disabled={activeSection === "password" && isPasswordSaving}
               className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
             >
-              Save Changes
+              {activeSection === "password" && isPasswordSaving ? "Saving..." : "Save Changes"}
             </button>
             {saved && (
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#2ECC71]">

@@ -34,6 +34,10 @@ const columns: { key: TaskStatus; label: string }[] = [
   { key: "archived", label: "Archived" },
 ]
 
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export default function TasksPage() {
   const { tasks, setTasks } = useData()
   const [search, setSearch] = useState("")
@@ -52,7 +56,7 @@ export default function TasksPage() {
   const [newStatus, setNewStatus] = useState<TaskStatus>("todo")
   const [newEstimatedHours, setNewEstimatedHours] = useState("")
   const [newDeadline, setNewDeadline] = useState("")
-  const [newWeek, setNewWeek] = useState("")
+  const [newWeek, setNewWeek] = useState(todayIsoDate())
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
@@ -78,7 +82,7 @@ export default function TasksPage() {
     setNewStatus("todo")
     setNewEstimatedHours("")
     setNewDeadline("")
-    setNewWeek("")
+    setNewWeek(todayIsoDate())
   }
 
   const handleCreate = () => {
@@ -92,7 +96,7 @@ export default function TasksPage() {
       estimatedHours: parseFloat(newEstimatedHours) || 0,
       actualHours: 0,
       deadline: newDeadline,
-      week: newWeek,
+      week: newWeek || todayIsoDate(),
       createdAt: new Date().toISOString(),
     }
     setTasks((prev) => [...prev, task])

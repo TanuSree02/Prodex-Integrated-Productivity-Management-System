@@ -44,8 +44,9 @@ export default function WorkloadPage() {
 
   const weekTasks = useMemo(() => {
     return tasks.filter((t) => {
-      if (!t.week) return false
-      const taskWeek = new Date(t.week)
+      const sourceDate = t.week || t.createdAt
+      if (!sourceDate) return false
+      const taskWeek = new Date(sourceDate)
       const taskRange = getWeekRange(taskWeek)
       return taskRange.start.getTime() === start.getTime()
     })
@@ -124,6 +125,9 @@ export default function WorkloadPage() {
 
       {/* Capacity bar */}
       <div className="rounded-lg bg-card p-5 shadow-sm border border-border">
+        <p className="mb-3 text-xs text-muted-foreground">
+          Workload is calculated from task estimated hours for this week. If a task has no assigned week, it falls back to the task creation week.
+        </p>
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="font-medium text-card-foreground">Capacity Usage</span>
           <span className="text-muted-foreground">

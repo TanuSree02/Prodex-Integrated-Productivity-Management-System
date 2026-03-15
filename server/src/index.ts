@@ -127,6 +127,17 @@ const signinSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "New password must be at least 8 characters"),
+    confirmPassword: z.string().min(8, "Confirm password is required"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "New passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 const userSkillsSelectionSchema = z.object({
   skillIds: z.array(z.string().trim().min(1)).max(400),
   customSkills: z.array(z.string().trim().min(1)).max(200).optional().default([]),
@@ -160,6 +171,8 @@ function isMissingSkillCatalogTablesError(error: unknown): boolean {
   const msg = error.message.toLowerCase();
   return msg.includes("skillcatalog")
     || msg.includes("userskill")
+    || msg.includes("customskillname")
+    || msg.includes("null value in column \"skillid\"")
     || msg.includes("relation")
     || msg.includes("does not exist");
 }
@@ -297,8 +310,8 @@ async function getData(userId: string) {
       assessedAt: s.assessments[0]?.assessedAt.toISOString() ?? new Date().toISOString(),
     })),
     settings: {
-      fullName: "",
-      email: "",
+      fullName: user?.fullName ?? "",
+      email: user?.email ?? "",
       timezone: user?.timezone ?? "UTC",
       weeklyCapacity: Number(user?.weeklyCapacityHours ?? 40),
       showOverloadWarnings: true,
@@ -386,6 +399,34 @@ export const meHandler: RequestHandler = async (req, res) => {
   } catch (error) {
     console.error("Fetch current user failed:", error);
     res.status(500).json({ error: "Failed to fetch user" });
+  }
+};
+
+export const changePasswordHandler: RequestHandler = async (req, res) => {
+  const parsed = changePasswordSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid password payload" });
+  }
+
+  try {
+    const user = await getAuthenticatedUser(req, res);
+    if (!user) return;
+
+    const isCurrentValid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+    if (!isCurrentValid) {
+      return res.status(400).json({ error: "Current password is incorrect" });
+    }
+
+    const newHash = await bcrypt.hash(parsed.data.newPassword, 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash },
+    });
+
+    res.json({ ok: true, message: "Password updated successfully" });
+  } catch (error) {
+    console.error("Change password failed:", error);
+    res.status(500).json({ error: "Failed to update password" });
   }
 };
 
@@ -643,7 +684,7 @@ export const saveUserSkillsHandler: RequestHandler = async (req, res) => {
             SELECT ${randomUUID()}, ${user.id}, s."id", NOW()
             FROM "SkillCatalog" s
             WHERE s."id" = ${skillId}
-            ON CONFLICT ("userId", "skillId") DO NOTHING
+            ON CONFLICT DO NOTHING
           `;
         }
 
@@ -762,15 +803,30 @@ export const syncHandler: RequestHandler = async (req, res) => {
     if (!user) return;
 
     const syncWarnings: string[] = [];
+    const normalizedName = payload.settings.fullName?.trim() || user.fullName;
+    const normalizedTimezone = payload.settings.timezone?.trim() || user.timezone;
+    const normalizedCapacity = payload.settings.weeklyCapacity || Number(user.weeklyCapacityHours) || 40;
+    const emailCandidate = payload.settings.email?.trim().toLowerCase();
+    const normalizedEmail = emailCandidate && z.string().email().safeParse(emailCandidate).success
+      ? emailCandidate
+      : user.email;
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        fullName: payload.settings.fullName || user.fullName,
-        timezone: payload.settings.timezone || user.timezone,
-        weeklyCapacityHours: payload.settings.weeklyCapacity || 40,
-      },
-    });
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          fullName: normalizedName,
+          email: normalizedEmail,
+          timezone: normalizedTimezone,
+          weeklyCapacityHours: normalizedCapacity,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        return res.status(409).json({ error: "Email already in use" });
+      }
+      throw error;
+    }
 
     if (Array.isArray(payload.tasks)) {
       try {
@@ -946,6 +1002,7 @@ app.get("/api/health", healthHandler);
 app.post("/api/v1/auth/signup", signupHandler);
 app.post("/api/v1/auth/signin", signinHandler);
 app.get("/api/v1/auth/me", meHandler);
+app.post("/api/v1/auth/change-password", changePasswordHandler);
 app.get("/api/v1/data", getDataHandler);
 app.get("/api/v1/skills/catalog", getSkillsCatalogHandler);
 app.post("/api/v1/skills/selection", saveUserSkillsHandler);
