@@ -45,6 +45,7 @@ export function useData() {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"
+const TOKEN_KEY = "prodex_token"
 const HIDDEN_KEYS = {
   tasks: "prodex_hidden_tasks",
   goals: "prodex_hidden_goals",
@@ -135,7 +136,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const fetchFromServer = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/v1/data`, { cache: "no-store" })
+      const token = localStorage.getItem(TOKEN_KEY)
+      if (!token) return
+
+      const response = await fetch(`${API_BASE}/api/v1/data`, {
+        cache: "no-store",
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (!response.ok) {
         const details = await extractErrorDetails(response)
         console.warn(`Failed to load data (${response.status}): ${details}`)
@@ -154,6 +161,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const init = async () => {
       try {
         hydrateHiddenIds()
+        const token = localStorage.getItem(TOKEN_KEY)
+        if (!token) return
         await fetchFromServer()
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -192,16 +201,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const syncNow = async () => {
       isSyncingRef.current = true
       try {
+        const token = localStorage.getItem(TOKEN_KEY)
+        if (!token) return
+
         let response = await fetch(`${API_BASE}/api/v1/tasks/sync`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(taskSyncPayload),
         })
         if (!response.ok) {
           // Fallback to full sync endpoint to keep task persistence working
           response = await fetch(`${API_BASE}/api/v1/sync`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               tasks: taskSyncPayload.tasks,
               goals: goalsState,
@@ -246,9 +258,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const syncNow = async () => {
       isSyncingRef.current = true
       try {
+        const token = localStorage.getItem(TOKEN_KEY)
+        if (!token) return
+
         const response = await fetch(`${API_BASE}/api/v1/sync`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ ...syncPayload, tasks: [] }),
         })
         if (!response.ok) {

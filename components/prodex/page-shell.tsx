@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/components/prodex/auth-provider"
 import {
   LayoutDashboard,
   CheckSquare,
@@ -16,6 +17,7 @@ import {
   Settings,
   Zap,
   Bell,
+  LogOut,
 } from "lucide-react"
 
 const navItems = [
@@ -42,6 +44,7 @@ const pageTitles: Record<string, string> = {
 
 export function PageShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { logout } = useAuth()
   const pageTitle = pageTitles[pathname] || (pathname.startsWith("/resources/") ? "Resources" : "Prodex")
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -59,15 +62,20 @@ export function PageShell({ children }: { children: React.ReactNode }) {
       {/* Slide-in sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-60 flex-col bg-primary text-primary-foreground shadow-xl transition-transform duration-200",
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-primary text-primary-foreground shadow-2xl transition-transform duration-200",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center gap-2.5 px-6 py-6">
-          <Zap className="h-6 w-6 text-accent" />
-          <span className="text-lg font-bold text-primary-foreground">Prodex</span>
+        <div className="flex items-center gap-2.5 border-b border-white/10 px-6 py-6">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
+            <Zap className="h-5 w-5 text-accent" />
+          </div>
+          <div>
+            <p className="text-lg font-bold text-primary-foreground">Prodex</p>
+            <p className="text-xs text-primary-foreground/70">Productivity OS</p>
+          </div>
         </div>
-        <nav className="flex flex-1 flex-col gap-1 px-3">
+        <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
           {navItems.map((item) => {
             const isActive = pathname === item.href
             return (
@@ -78,7 +86,7 @@ export function PageShell({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-white/15 text-primary-foreground"
+                    ? "bg-white/15 text-primary-foreground shadow-sm"
                     : "text-primary-foreground/70 hover:bg-white/10 hover:text-primary-foreground"
                 )}
               >
@@ -88,11 +96,14 @@ export function PageShell({ children }: { children: React.ReactNode }) {
             )
           })}
         </nav>
+        <div className="border-t border-white/10 px-4 py-3 text-xs text-primary-foreground/65">
+          Stay focused. Track progress daily.
+        </div>
       </aside>
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-6">
+        <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-border/80 bg-card/95 px-4 backdrop-blur md:px-6">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen((prev) => !prev)}
@@ -101,13 +112,26 @@ export function PageShell({ children }: { children: React.ReactNode }) {
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-            <h1 className="text-xl font-semibold text-card-foreground">{pageTitle}</h1>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight text-card-foreground">{pageTitle}</h1>
+            </div>
           </div>
-          <button className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors" aria-label="Notifications">
-            <Bell className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted transition-colors" aria-label="Notifications">
+              <Bell className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={logout}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#1F3E69] bg-[#1F3E69] px-3 text-sm font-medium text-white hover:bg-[#183355] transition-colors"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </button>
+          </div>
         </header>
-        <main className="flex-1 overflow-y-auto bg-background p-6">
+        <main className="flex-1 overflow-y-auto bg-background px-4 py-5 md:px-6 md:py-6">
           {children}
         </main>
       </div>

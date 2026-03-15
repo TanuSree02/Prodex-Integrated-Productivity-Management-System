@@ -37,6 +37,7 @@ function DataConsumer() {
 
 describe("DataProvider", () => {
   beforeEach(() => {
+    localStorage.setItem("prodex_token", "test-token")
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -90,6 +91,7 @@ describe("DataProvider", () => {
   })
 
   afterEach(() => {
+    localStorage.clear()
     vi.unstubAllGlobals()
   })
 

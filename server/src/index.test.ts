@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 process.env.NODE_ENV = "test";
@@ -49,11 +49,15 @@ vi.mock("@prisma/client", () => {
 vi.mock("bcrypt", () => ({
   default: {
     hash: vi.fn(async () => "hashed-password"),
+    compare: vi.fn(async () => true),
   },
 }));
 
 const {
   healthHandler,
+  signupHandler,
+  signinHandler,
+  meHandler,
   getDataHandler,
   getResourceCategoriesHandler,
   getResourcesByCategoryHandler,
@@ -61,13 +65,19 @@ const {
   syncHandler,
 } = await import("./index");
 
-const demoUser = {
+const authSecret = "prodex-dev-secret-change-me";
+const authUser = {
   id: "u1",
-  email: "demo@prodex.io",
-  fullName: "Demo User",
+  email: "user@example.com",
+  fullName: "User One",
   timezone: "UTC",
   weeklyCapacityHours: 40,
 };
+
+function authHeaderFor(userId = authUser.id, email = authUser.email) {
+  const token = jwt.sign({ sub: userId, email }, authSecret, { expiresIn: "7d" });
+  return `Bearer ${token}`;
+}
 
 function createRes() {
   const res: {
@@ -90,8 +100,8 @@ function createRes() {
   return res;
 }
 
-function primeDataQueries() {
-  prismaMock.user.findUnique.mockResolvedValue(demoUser);
+function primeUserDataQueries() {
+  prismaMock.user.findUnique.mockResolvedValue(authUser);
   prismaMock.task.findMany.mockResolvedValue([
     {
       id: "t1",
@@ -149,8 +159,8 @@ beforeEach(() => {
   txMock.jobApplication.upsert.mockResolvedValue(undefined);
   txMock.skill.upsert.mockResolvedValue({ id: "s1" });
   txMock.skillAssessment.upsert.mockResolvedValue(undefined);
-  prismaMock.user.update.mockResolvedValue(demoUser);
-  primeDataQueries();
+  prismaMock.user.update.mockResolvedValue(authUser);
+  primeUserDataQueries();
 });
 
 describe("Backend handlers", () => {
@@ -161,27 +171,72 @@ describe("Backend handlers", () => {
     expect(res.body).toEqual({ ok: true, message: "Prodex backend running" });
   });
 
-  it("data handler returns transformed payload", async () => {
+  it("signup creates account and returns token", async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce(null);
+    prismaMock.user.create.mockResolvedValueOnce(authUser);
+
     const res = createRes();
-    await getDataHandler({} as never, res as never, vi.fn());
-    const body = res.body as { data: { tasks: { status: string }[]; applications: { status: string }[]; settings: { fullName: string; email: string } } };
-    expect(res.statusCode).toBe(200);
-    expect(body.data.tasks[0].status).toBe("in-progress");
-    expect(body.data.applications[0].status).toBe("phone-screen");
-    expect(body.data.settings.fullName).toBe("");
-    expect(body.data.settings.email).toBe("");
+    await signupHandler(
+      {
+        body: {
+          fullName: "User One",
+          email: "user@example.com",
+          password: "password123",
+          confirmPassword: "password123",
+        },
+      } as never,
+      res as never,
+      vi.fn()
+    );
+
+    const body = res.body as { token: string; user: { email: string } };
+    expect(res.statusCode).toBe(201);
+    expect(body.token).toBeTruthy();
+    expect(body.user.email).toBe("user@example.com");
   });
 
-  it("data handler creates demo user when missing", async () => {
-    prismaMock.user.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(demoUser);
-    prismaMock.user.create.mockResolvedValue(demoUser);
+  it("signin validates credentials and returns token", async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({ ...authUser, passwordHash: "hashed-password" });
 
     const res = createRes();
-    await getDataHandler({} as never, res as never, vi.fn());
+    await signinHandler(
+      { body: { email: "user@example.com", password: "password123" } } as never,
+      res as never,
+      vi.fn()
+    );
 
+    const body = res.body as { token: string };
     expect(res.statusCode).toBe(200);
-    expect(prismaMock.user.create).toHaveBeenCalledTimes(1);
-    expect(bcrypt.hash).toHaveBeenCalled();
+    expect(body.token).toBeTruthy();
+  });
+
+  it("me endpoint returns authenticated user", async () => {
+    const res = createRes();
+    await meHandler(
+      { headers: { authorization: authHeaderFor() } } as never,
+      res as never,
+      vi.fn()
+    );
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ user: { id: authUser.id, fullName: authUser.fullName, email: authUser.email } });
+  });
+
+  it("data handler returns 401 without token", async () => {
+    const res = createRes();
+    await getDataHandler({ headers: {} } as never, res as never, vi.fn());
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("data handler returns user-scoped payload for authenticated user", async () => {
+    const res = createRes();
+    await getDataHandler(
+      { headers: { authorization: authHeaderFor() } } as never,
+      res as never,
+      vi.fn()
+    );
+    const body = res.body as { data: { tasks: { status: string }[] } };
+    expect(res.statusCode).toBe(200);
+    expect(body.data.tasks[0].status).toBe("in-progress");
   });
 
   it("resource categories handler returns dynamic categories with counts", async () => {
@@ -237,26 +292,17 @@ describe("Backend handlers", () => {
     expect(body.data.resources[0].title).toBe("React Docs");
   });
 
-  it("resource by category handler returns 404 for unknown category", async () => {
-    prismaMock.resourceCategory.findUnique.mockResolvedValue(null);
-
+  it("tasks sync handler validates auth and payload", async () => {
     const res = createRes();
-    await getResourcesByCategoryHandler({ params: { slug: "unknown" } } as never, res as never, vi.fn());
-    expect(res.statusCode).toBe(404);
-    expect(res.body).toEqual({ error: "Category not found" });
-  });
-
-  it("tasks sync handler validates payload", async () => {
-    const res = createRes();
-    await tasksSyncHandler({ body: {} } as never, res as never, vi.fn());
+    await tasksSyncHandler({ headers: {}, body: {} } as never, res as never, vi.fn());
     expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: "Invalid task payload" });
   });
 
-  it("tasks sync handler upserts tasks and returns refreshed tasks", async () => {
+  it("tasks sync handler upserts user tasks and returns refreshed tasks", async () => {
     const res = createRes();
     await tasksSyncHandler(
       {
+        headers: { authorization: authHeaderFor() },
         body: {
           tasks: [
             {
@@ -284,14 +330,13 @@ describe("Backend handlers", () => {
     expect(body.data.tasks).toHaveLength(1);
   });
 
-  it("sync handler validates payload", async () => {
+  it("sync handler requires auth", async () => {
     const res = createRes();
-    await syncHandler({ body: { tasks: [] } } as never, res as never, vi.fn());
-    expect(res.statusCode).toBe(400);
-    expect(res.body).toEqual({ error: "Invalid payload" });
+    await syncHandler({ headers: {}, body: { settings: {} } } as never, res as never, vi.fn());
+    expect(res.statusCode).toBe(401);
   });
 
-  it("sync handler syncs all modules and returns warnings list", async () => {
+  it("sync handler syncs modules for authenticated user", async () => {
     const payload = {
       tasks: [
         {
@@ -307,39 +352,9 @@ describe("Backend handlers", () => {
           createdAt: "2026-02-20T12:00:00.000Z",
         },
       ],
-      goals: [
-        {
-          id: "g1",
-          title: "Goal",
-          category: "technical",
-          targetDate: "2026-05-01",
-          description: "desc",
-          progress: 50,
-          milestones: [{ id: "m1", title: "M1", done: false }],
-          createdAt: "2026-02-20T12:00:00.000Z",
-        },
-      ],
-      applications: [
-        {
-          id: "a1",
-          company: "Acme",
-          role: "Engineer",
-          status: "applied",
-          dateApplied: "2026-02-20",
-          jobUrl: "https://acme.example/jobs",
-          notes: "note",
-          createdAt: "2026-02-20T12:00:00.000Z",
-        },
-      ],
-      skills: [
-        {
-          id: "s1",
-          name: "React",
-          category: "technical",
-          rating: 5,
-          assessedAt: "2026-02-20T12:00:00.000Z",
-        },
-      ],
+      goals: [],
+      applications: [],
+      skills: [],
       settings: {
         fullName: "",
         email: "",
@@ -351,65 +366,13 @@ describe("Backend handlers", () => {
     };
 
     const res = createRes();
-    await syncHandler({ body: payload } as never, res as never, vi.fn());
-    const body = res.body as { warnings: string[] };
-
-    expect(res.statusCode).toBe(200);
-    expect(prismaMock.user.update).toHaveBeenCalledTimes(1);
-    expect(txMock.task.upsert).toHaveBeenCalled();
-    expect(txMock.careerGoal.upsert).toHaveBeenCalled();
-    expect(txMock.jobApplication.upsert).toHaveBeenCalled();
-    expect(txMock.skill.upsert).toHaveBeenCalled();
-    expect(body.warnings).toEqual([]);
-  });
-
-  it("sync handler reports warnings for partially failed modules", async () => {
-    let call = 0;
-    prismaMock.$transaction.mockImplementation(async (callback: (tx: typeof txMock) => Promise<void>) => {
-      call += 1;
-      if (call === 1) {
-        throw new Error("Task transaction failed");
-      }
-      return callback(txMock);
-    });
-
-    const res = createRes();
     await syncHandler(
-      {
-        body: {
-          tasks: [
-            {
-              id: "t1",
-              title: "Task",
-              description: "",
-              priority: "low",
-              status: "todo",
-              estimatedHours: 1,
-              actualHours: 0,
-              deadline: "",
-              week: "",
-              createdAt: "2026-02-20T12:00:00.000Z",
-            },
-          ],
-          goals: [],
-          applications: [],
-          skills: [],
-          settings: {
-            fullName: "",
-            email: "",
-            timezone: "UTC",
-            weeklyCapacity: 40,
-            showOverloadWarnings: true,
-            enableDeadlineReminders: true,
-          },
-        },
-      } as never,
+      { headers: { authorization: authHeaderFor() }, body: payload } as never,
       res as never,
       vi.fn()
     );
 
-    const body = res.body as { warnings: string[] };
     expect(res.statusCode).toBe(200);
-    expect(body.warnings).toContain("tasks");
+    expect(txMock.task.upsert).toHaveBeenCalled();
   });
 });

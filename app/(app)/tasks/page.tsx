@@ -175,8 +175,13 @@ export default function TasksPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <section className="prodex-surface bg-gradient-to-r from-primary/[0.03] via-accent/[0.04] to-primary/[0.03] p-5">
+        <h2 className="prodex-page-title">Task Board</h2>
+        <p className="prodex-page-subtitle">Plan work by status, drag tasks across columns, and keep priorities clear.</p>
+      </section>
+
       {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="prodex-surface flex flex-wrap items-center gap-3 p-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -184,7 +189,7 @@ export default function TasksPage() {
             placeholder="Search tasks..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-full rounded-md border border-input bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+            className="prodex-input h-9 w-full pl-9"
           />
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -287,7 +292,7 @@ export default function TasksPage() {
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
                 placeholder="Task title"
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+                className="prodex-input h-9"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -339,7 +344,7 @@ export default function TasksPage() {
                 value={newEstimatedHours}
                 onChange={(e) => setNewEstimatedHours(e.target.value)}
                 placeholder="0"
-                className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+                className="prodex-input h-9"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -349,7 +354,7 @@ export default function TasksPage() {
                   type="date"
                   value={newDeadline}
                   onChange={(e) => setNewDeadline(e.target.value)}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+                  className="prodex-input h-9"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -358,7 +363,7 @@ export default function TasksPage() {
                   type="date"
                   value={newWeek}
                   onChange={(e) => setNewWeek(e.target.value)}
-                  className="h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow]"
+                  className="prodex-input h-9"
                 />
               </div>
             </div>

@@ -106,6 +106,11 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <section className="prodex-surface bg-gradient-to-r from-primary/[0.03] via-accent/[0.04] to-primary/[0.03] p-5">
+        <h2 className="prodex-page-title">Your Weekly Snapshot</h2>
+        <p className="prodex-page-subtitle">Track workload, deadlines, and career momentum from one place.</p>
+      </section>
+
       {/* Metric tiles */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricTile
@@ -136,7 +141,7 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg bg-card p-5 shadow-sm border border-border">
+        <div className="prodex-surface p-5">
           <h2 className="mb-4 text-base font-semibold text-card-foreground">Workload Trend</h2>
           {tasks.length === 0 ? (
             <EmptyState
@@ -159,7 +164,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           )}
         </div>
-        <div className="rounded-lg bg-card p-5 shadow-sm border border-border">
+        <div className="prodex-surface p-5">
           <h2 className="mb-4 text-base font-semibold text-card-foreground">Tasks by Priority</h2>
           {priorityData.length === 0 ? (
             <EmptyState
@@ -201,7 +206,7 @@ export default function DashboardPage() {
 
       {/* Feed panels */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-lg bg-card p-5 shadow-sm border border-border">
+        <div className="prodex-surface p-5">
           <h2 className="mb-4 text-base font-semibold text-card-foreground">Recent Tasks</h2>
           {recentTasks.length === 0 ? (
             <EmptyState
@@ -233,7 +238,7 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <div className="rounded-lg bg-card p-5 shadow-sm border border-border">
+        <div className="prodex-surface p-5">
           <h2 className="mb-4 text-base font-semibold text-card-foreground">Career Activity</h2>
           {recentApplications.length === 0 && goals.length === 0 ? (
             <EmptyState

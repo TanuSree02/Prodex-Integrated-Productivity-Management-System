@@ -155,3 +155,85 @@
 155. Verified Render settings now point Start Command to `node dist/src/index.js` and instructed user to save changes and redeploy latest commit.
 156. Confirmed Render backend deployment is live (green deploy status for commit 7a10822) and proceeded to frontend deployment guidance.
 157. Diagnosed Vercel deployment failure as pnpm frozen-lockfile mismatch due outdated `pnpm-lock.yaml` vs current `package.json`; provided npm-based deployment fix.
+158. Clarified Vercel navigation issue: user was in Team settings; provided correct Project-level path for Build & Development install command.
+159. Confirmed Vercel project deployment is Ready on commit 5e35c99; pnpm lockfile issue resolved.
+160. Mapped current Vercel UI path to access project env settings from deployment card (`Deployment Settings`) when top-right menu lacks Settings entry.
+161. Guided user from Vercel deployment details panel to project environment variables page using in-app Find/search fallback path.
+162. Confirmed Vercel environment variable is correctly configured and provided exact redeploy steps to apply env changes.
+163. Guided user to open Vercel deployment history from Overview and use per-deployment menu to redeploy after environment variable updates.
+164. Confirmed Vercel has a fresh Ready/Current production deployment after env var setup and moved to final live-app verification steps.
+165. Provided exact Vercel redeploy steps from Deployments list view, including row menu path and alternative git-push trigger.
+166. Confirmed user reached Vercel deployment details page and provided direct redeploy path from the top-right actions.
+167. User confirmed Vercel redeploy was triggered; proceeding with final end-to-end production verification steps.
+168. Started UI polish pass to improve user-friendliness and visual appeal while preserving existing functionality.
+169. Enhanced global design tokens and base styles in `app/globals.css` with subtle gradient background, improved text rendering, reusable surface/input utility classes, and selection styling.
+170. Refined app shell in `components/prodex/page-shell.tsx` with upgraded sidebar branding/footer, improved active nav treatment, sticky translucent header, and better content spacing.
+171. Updated `app/(app)/dashboard/page.tsx` with a clearer hero summary section and standardized surface styling for analytics/feed cards.
+172. Improved `app/(app)/tasks/page.tsx` UX with a task-board intro section, elevated filter bar container, and consistent form input styling.
+173. Improved `app/(app)/applications/page.tsx` with a tracker intro section, more consistent form input styles, and hover-elevated application rows.
+174. Improved `app/(app)/resources/page.tsx` with an intro section, consistent search input styling, and elevated resource category cards.
+175. Improved `app/(app)/resources/[categorySlug]/page.tsx` for style consistency (hero section, unified search input, elevated resource cards).
+176. Ran full frontend+backend Vitest suite after UI changes; all tests passed (19/19).
+177. Provided final optional production monitoring/log-alert setup steps for Render backend, Vercel frontend, and Neon database.
+178. Explained why friend signup details are not visible: current app flow is demo/single-user oriented and lacks multi-user admin listing endpoint/UI.
+179. Audited existing auth/data architecture and confirmed frontend auth was local-only while backend used demo-user data flow.
+180. Added backend JWT authentication foundation in `server/src/index.ts` (token helpers, auth payload types, signup/signin validation schemas).
+181. Implemented backend auth endpoints in `server/src/index.ts`: `POST /api/v1/auth/signup`, `POST /api/v1/auth/signin`, `GET /api/v1/auth/me`.
+182. Replaced demo-user data access with authenticated-user enforcement in backend handlers for `/api/v1/data`, `/api/v1/tasks/sync`, and `/api/v1/sync`.
+183. Ensured user-based task isolation by binding all task reads/writes to authenticated `userId` from JWT.
+184. Updated frontend auth provider in `components/prodex/auth-provider.tsx` to use real backend auth APIs, persist JWT, validate session via `/api/v1/auth/me`, and support async login/signup/logout.
+185. Updated login form in `app/login/page.tsx` to call real signin API through auth provider with loading/error UX.
+186. Updated signup form in `app/signup/page.tsx` to call real signup API through auth provider with password-match validation and loading/error UX.
+187. Updated frontend data layer in `components/prodex/data-provider.tsx` to include Bearer token on all data/sync API requests and skip sync/fetch when unauthenticated.
+188. Reworked auth provider tests in `components/prodex/auth-provider.test.tsx` to reflect backend-driven signin/session behavior.
+189. Updated data provider tests in `components/prodex/data-provider.test.tsx` to initialize auth token before data fetching.
+190. Rewrote backend handler test suite in `server/src/index.test.ts` for authenticated architecture and new auth endpoints.
+191. Ran full test suite (`npm test` at repo root); all tests passed (20/20).
+192. Ran backend TypeScript build (`npm run build` in `server`) after auth changes; build passed.
+193. Implemented 3-dot action menus for Application cards in `app/(app)/applications/page.tsx` with `Edit` and `Delete` options.
+194. Added full edit flow for Applications (prefilled edit modal + save updates) and wired delete behavior.
+195. Implemented 3-dot action menus for Career Goal cards in `app/(app)/career/page.tsx` with `Edit` and `Delete` options.
+196. Added full edit flow for Career Goals (prefilled edit modal + save updates) and wired delete behavior.
+197. Implemented 3-dot action menus for Skill cards in `app/(app)/career/page.tsx` with `Edit` and `Delete` options.
+198. Added full edit flow for Skills (prefilled edit modal + save updates) and wired delete behavior.
+199. Ran project test suite (`npm test`); all tests passed (20/20).
+200. Started full redesign of Skills section to a database-driven selectable-card experience with search, user-specific persistence, and save flow.
+201. Added new Prisma models in `server/prisma/schema.prisma`: `SkillCatalog` and `UserSkill` for global skills + per-user selection mapping.
+202. Added migration `server/prisma/migrations/20260313235500_add_skill_catalog_selection/migration.sql` to create `SkillCatalog`/`UserSkill` tables, indexes, relations, and initial catalog seed rows.
+203. Implemented backend API in `server/src/index.ts`: `GET /api/v1/skills/catalog` (supports search and selected-state) and `POST /api/v1/skills/selection` (save user-selected skills).
+204. Updated backend routes registration to expose the new skills catalog and user selection endpoints.
+205. Updated seed script `server/prisma/seed.ts` to populate skills catalog entries and demo user selected skills using SQL statements.
+206. Rebuilt `app/(app)/career/page.tsx` Skills tab into modern selectable cards/icons with grey/unselected and colored/selected states, smooth hover, responsive grid, and live search filtering.
+207. Added Skills tab actions in `app/(app)/career/page.tsx`: `Back` button and `Continue / Save` button that persists selections and then navigates forward.
+208. Preserved Goals functionality in `app/(app)/career/page.tsx`, including existing edit/delete menu and goal progress behaviors.
+209. Ran full project test suite (`npm test`); all tests passed (20/20).
+210. Ran backend TypeScript build (`npm run build` in `server`); build passed.
+211. Diagnosed Skills-page runtime error as non-200 response from `/api/v1/skills/catalog`, which triggered a thrown error in frontend and surfaced as a Next.js console issue overlay.
+212. Added frontend resilience in `app/(app)/career/page.tsx`: removed hard throws on skills fetch/save failures and replaced with graceful UI error handling.
+213. Added backend fallback logic in `server/src/index.ts` for missing `SkillCatalog`/`UserSkill` tables, so skills can still load from existing user `Skill` data.
+214. Added backend fallback save path in `server/src/index.ts` to persist selected skills into legacy `Skill`/`SkillAssessment` tables when new mapping tables are unavailable.
+215. Added shared default skills catalog and category mapping helpers in `server/src/index.ts` to support fallback mode without crashing.
+216. Re-ran full test suite (`npm test`); all tests passed (20/20).
+217. Re-ran backend TypeScript build (`npm run build` in `server`); build passed.
+218. Added support for custom user skills by updating `UserSkill` model in `server/prisma/schema.prisma` to allow either `skillId` or `customSkillName`.
+219. Added migration `server/prisma/migrations/20260314002000_add_custom_user_skills/migration.sql` to support custom user skills with integrity checks and duplicate-prevention indexes.
+220. Updated `GET /api/v1/skills/catalog` in `server/src/index.ts` to return user custom skills along with master catalog skills.
+221. Updated `POST /api/v1/skills/selection` in `server/src/index.ts` to accept `customSkills` and persist custom entries only in `UserSkill` (not `SkillCatalog`).
+222. Added backend dedupe logic for custom skills (case-insensitive) and avoided duplicate custom-vs-master selections.
+223. Updated Skills UI in `app/(app)/career/page.tsx` to include an `Other` card that opens a modal input for custom skill entry.
+224. Implemented custom-skill add flow in `app/(app)/career/page.tsx`: save from modal, auto-select, prevent duplicates, and include in save payload.
+225. Updated Skills save payload in `app/(app)/career/page.tsx` to send `skillIds` for master skills and `customSkills` for user-only custom values.
+226. Kept selected/unselected icon color behavior in Skills cards: selected uses colored icon/text states, unselected remains muted.
+227. Removed unnecessary per-keystroke backend fetch for skill search in `app/(app)/career/page.tsx`; filtering now happens in UI over loaded DB skills.
+228. Ran full test suite (`npm test`); all tests passed (20/20).
+229. Ran backend TypeScript build (`npm run build` in `server`); build passed.
+230. Diagnosed custom-skill persistence gap as load path only returning catalog+UserSkill custom rows, missing compatibility read from legacy user `Skill` entries in mixed-schema states.
+231. Updated `listSkillCatalogForUser` in `server/src/index.ts` to append legacy user skill names as custom-selected rows when not already present in catalog/custom mappings.
+232. Preserved dedupe across catalog, UserSkill custom rows, and legacy skill rows using case-insensitive name matching.
+233. Verified custom row hydration now returns both predefined and custom selections after save/reopen cycles, including compatibility with partially migrated environments.
+234. Re-ran full test suite (`npm test`); all tests passed (20/20).
+235. Re-ran backend TypeScript build (`npm run build` in `server`); build passed.
+236. Added top-right `Sign Out` action in app header by updating `components/prodex/page-shell.tsx`.
+237. Wired header Sign Out button to auth context `logout()` from `components/prodex/auth-provider.tsx` so users can sign out directly from dashboard/app pages.
+238. Ran full test suite (`npm test`) after header logout addition; all tests passed (20/20).
+239. Updated top-right Sign Out button color in `components/prodex/page-shell.tsx` to dark blue (`#1F3E69`) with matching border and darker hover state.

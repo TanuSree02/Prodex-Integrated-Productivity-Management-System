@@ -6,17 +6,33 @@ import { useAuth } from "@/components/prodex/auth-provider"
 import { Zap, Eye, EyeOff } from "lucide-react"
 
 export default function SignupPage() {
-  const { login } = useAuth()
+  const { signup } = useAuth()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    login()
+    setError("")
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await signup({ fullName: fullName.trim(), email: email.trim(), password, confirmPassword })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Signup failed")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -104,10 +120,12 @@ export default function SignupPage() {
           </div>
           <button
             type="submit"
+            disabled={isSubmitting}
             className="h-10 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
           >
-            Create Account
+            {isSubmitting ? "Creating account..." : "Create Account"}
           </button>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </form>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}

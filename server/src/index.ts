@@ -2,7 +2,10 @@ import express, { type RequestHandler } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcrypt";
-import { PrismaClient, type GoalCategory, type ApplicationStatus } from "@prisma/client";
+import jwt from "jsonwebtoken";
+import { randomUUID } from "node:crypto";
+import { Prisma, PrismaClient, type GoalCategory, type ApplicationStatus } from "@prisma/client";
+import { z } from "zod";
 
 dotenv.config();
 
@@ -12,7 +15,8 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
-const DEMO_EMAIL = "demo@prodex.io";
+const JWT_SECRET = process.env.JWT_SECRET || "prodex-dev-secret-change-me";
+const JWT_EXPIRES_IN = "7d";
 
 interface TaskPayload {
   id: string;
@@ -90,6 +94,91 @@ interface ResourcePayload {
   url: string;
 }
 
+interface SkillCatalogPayload {
+  id: string;
+  name: string;
+  icon: string;
+  category: string;
+  selected: boolean;
+  custom?: boolean;
+}
+
+interface AuthPayload {
+  sub: string;
+  email: string;
+  iat: number;
+  exp: number;
+}
+
+const signupSchema = z
+  .object({
+    fullName: z.string().trim().min(2, "Full name must be at least 2 characters"),
+    email: z.string().trim().email("Please provide a valid email"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(8, "Confirm password is required"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+const signinSchema = z.object({
+  email: z.string().trim().email("Please provide a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+
+const userSkillsSelectionSchema = z.object({
+  skillIds: z.array(z.string().trim().min(1)).max(400),
+  customSkills: z.array(z.string().trim().min(1)).max(200).optional().default([]),
+});
+
+const DEFAULT_SKILL_CATALOG: Array<{ id: string; name: string; icon: string; category: string }> = [
+  { id: "sc_python", name: "Python", icon: "python", category: "language" },
+  { id: "sc_sql", name: "SQL", icon: "sql", category: "database" },
+  { id: "sc_react", name: "React", icon: "react", category: "frontend" },
+  { id: "sc_nextjs", name: "Next.js", icon: "nextjs", category: "frontend" },
+  { id: "sc_nodejs", name: "Node.js", icon: "nodejs", category: "backend" },
+  { id: "sc_java", name: "Java", icon: "java", category: "language" },
+  { id: "sc_cpp", name: "C++", icon: "cpp", category: "language" },
+  { id: "sc_cloud", name: "Cloud", icon: "cloud", category: "cloud" },
+  { id: "sc_aws", name: "AWS", icon: "aws", category: "cloud" },
+  { id: "sc_docker", name: "Docker", icon: "docker", category: "devops" },
+  { id: "sc_git", name: "Git", icon: "git", category: "tooling" },
+  { id: "sc_postgresql", name: "PostgreSQL", icon: "postgresql", category: "database" },
+  { id: "sc_mongodb", name: "MongoDB", icon: "mongodb", category: "database" },
+  { id: "sc_api", name: "API", icon: "api", category: "backend" },
+  { id: "sc_ml", name: "Machine Learning", icon: "machine-learning", category: "ai" },
+  { id: "sc_data_science", name: "Data Science", icon: "data-science", category: "ai" },
+  { id: "sc_pytorch", name: "PyTorch", icon: "pytorch", category: "ai" },
+  { id: "sc_pyspark", name: "PySpark", icon: "pyspark", category: "data" },
+  { id: "sc_typescript", name: "TypeScript", icon: "typescript", category: "language" },
+  { id: "sc_graphql", name: "GraphQL", icon: "graphql", category: "backend" },
+];
+
+function isMissingSkillCatalogTablesError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes("skillcatalog")
+    || msg.includes("userskill")
+    || msg.includes("relation")
+    || msg.includes("does not exist");
+}
+
+function slugToId(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function mapCatalogCategoryToGoalCategory(category: string): GoalCategory {
+  const c = category.toLowerCase();
+  if (c === "education") return "education";
+  if (c === "leadership") return "leadership";
+  if (c === "network") return "network";
+  return "technical";
+}
+
 function dayString(date: Date | null | undefined): string {
   if (!date) return "";
   return date.toISOString().slice(0, 10);
@@ -117,20 +206,37 @@ function parseDateMaybe(value: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-async function ensureDemoUser() {
-  const existing = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
-  if (existing) return existing;
+function createAuthToken(user: { id: string; email: string }) {
+  return jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+}
 
-  const passwordHash = await bcrypt.hash("Prodex@123", 12);
-  return prisma.user.create({
-    data: {
-      email: DEMO_EMAIL,
-      passwordHash,
-      fullName: "Demo User",
-      timezone: "UTC",
-      weeklyCapacityHours: 40,
-    },
-  });
+function getUserIdFromAuthHeader(authorizationHeader: unknown): string | null {
+  if (typeof authorizationHeader !== "string" || !authorizationHeader.startsWith("Bearer ")) return null;
+  const token = authorizationHeader.slice(7).trim();
+  if (!token) return null;
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    return payload.sub || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getAuthenticatedUser(req: express.Request, res: express.Response) {
+  const userId = getUserIdFromAuthHeader(req.headers.authorization);
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
+  }
+
+  return user;
 }
 
 async function getData(userId: string) {
@@ -205,9 +311,89 @@ export const healthHandler: RequestHandler = (_req, res) => {
   res.json({ ok: true, message: "Prodex backend running" });
 };
 
+export const signupHandler: RequestHandler = async (req, res) => {
+  const parsed = signupSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid signup payload" });
+  }
+
+  try {
+    const email = parsed.data.email.toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+
+    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+    const user = await prisma.user.create({
+      data: {
+        fullName: parsed.data.fullName,
+        email,
+        passwordHash,
+        timezone: "UTC",
+        weeklyCapacityHours: 40,
+      },
+    });
+
+    const token = createAuthToken({ id: user.id, email: user.email });
+    res.status(201).json({
+      token,
+      user: { id: user.id, fullName: user.fullName, email: user.email },
+    });
+  } catch (error) {
+    console.error("Signup failed:", error);
+    res.status(500).json({ error: "Failed to create account" });
+  }
+};
+
+export const signinHandler: RequestHandler = async (req, res) => {
+  const parsed = signinSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid signin payload" });
+  }
+
+  try {
+    const email = parsed.data.email.toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(parsed.data.password, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const token = createAuthToken({ id: user.id, email: user.email });
+    res.json({
+      token,
+      user: { id: user.id, fullName: user.fullName, email: user.email },
+    });
+  } catch (error) {
+    console.error("Signin failed:", error);
+    res.status(500).json({ error: "Failed to sign in" });
+  }
+};
+
+export const meHandler: RequestHandler = async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req, res);
+    if (!user) return;
+
+    res.json({
+      user: { id: user.id, fullName: user.fullName, email: user.email },
+    });
+  } catch (error) {
+    console.error("Fetch current user failed:", error);
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+};
+
 export const getDataHandler: RequestHandler = async (_req, res) => {
   try {
-    const user = await ensureDemoUser();
+    const user = await getAuthenticatedUser(_req, res);
+    if (!user) return;
+
     const data = await getData(user.id);
     res.json({ data });
   } catch (error) {
@@ -288,6 +474,230 @@ export const getResourcesByCategoryHandler: RequestHandler = async (req, res) =>
   }
 };
 
+async function listSkillCatalogForUser(userId: string, searchQuery = ""): Promise<SkillCatalogPayload[]> {
+  const trimmed = searchQuery.trim();
+  const where = trimmed
+    ? Prisma.sql`WHERE s."name" ILIKE ${`%${trimmed}%`}`
+    : Prisma.empty;
+
+  try {
+    const rows = await prisma.$queryRaw<
+      Array<{ id: string; name: string; icon: string | null; category: string | null; selected: boolean }>
+    >(Prisma.sql`
+      SELECT
+        s."id",
+        s."name",
+        s."icon",
+        s."category",
+        CASE WHEN us."id" IS NULL THEN false ELSE true END AS "selected"
+      FROM "SkillCatalog" s
+      LEFT JOIN "UserSkill" us
+        ON us."skillId" = s."id"
+        AND us."userId" = ${userId}
+      ${where}
+      ORDER BY s."name" ASC
+    `);
+
+    const customWhere = trimmed
+      ? Prisma.sql`AND us."customSkillName" ILIKE ${`%${trimmed}%`}`
+      : Prisma.empty;
+    const customRows = await prisma.$queryRaw<
+      Array<{ id: string; customSkillName: string }>
+    >(Prisma.sql`
+      SELECT us."id", us."customSkillName"
+      FROM "UserSkill" us
+      WHERE us."userId" = ${userId}
+        AND us."customSkillName" IS NOT NULL
+        ${customWhere}
+      ORDER BY us."customSkillName" ASC
+    `);
+
+    const base = rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      icon: row.icon ?? "",
+      category: row.category ?? "",
+      selected: !!row.selected,
+    }));
+
+    const custom = customRows.map((row) => ({
+      id: `custom:${row.id}`,
+      name: row.customSkillName,
+      icon: "other",
+      category: "custom",
+      selected: true,
+      custom: true,
+    }));
+
+    const legacySkills = await prisma.skill.findMany({
+      where: { userId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+
+    const existingNames = new Set(
+      [...base, ...custom].map((item) => item.name.toLowerCase())
+    );
+    const legacyCustom = legacySkills
+      .filter((row) => !existingNames.has(row.name.toLowerCase()))
+      .filter((row) => !trimmed || row.name.toLowerCase().includes(trimmed.toLowerCase()))
+      .map((row) => ({
+        id: `custom:legacy-${row.id}`,
+        name: row.name,
+        icon: "other",
+        category: "custom",
+        selected: true,
+        custom: true,
+      }));
+
+    return [...base, ...custom, ...legacyCustom];
+  } catch (error) {
+    if (!isMissingSkillCatalogTablesError(error)) throw error;
+
+    const fallbackUserSkills = await prisma.skill.findMany({
+      where: { userId },
+      select: { name: true },
+      orderBy: { name: "asc" },
+    });
+
+    const selectedNameSet = new Set(fallbackUserSkills.map((s) => s.name.toLowerCase()));
+    const mergedCatalog = [...DEFAULT_SKILL_CATALOG];
+    for (const row of fallbackUserSkills) {
+      const exists = mergedCatalog.some((item) => item.name.toLowerCase() === row.name.toLowerCase());
+      if (!exists) {
+        mergedCatalog.push({
+          id: `legacy_${slugToId(row.name)}`,
+          name: row.name,
+          icon: "",
+          category: "other",
+        });
+      }
+    }
+
+    const filtered = trimmed
+      ? mergedCatalog.filter((item) => item.name.toLowerCase().includes(trimmed.toLowerCase()))
+      : mergedCatalog;
+
+    return filtered
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((item) => ({
+        ...item,
+        selected: selectedNameSet.has(item.name.toLowerCase()),
+      }));
+  }
+}
+
+export const getSkillsCatalogHandler: RequestHandler = async (req, res) => {
+  try {
+    const user = await getAuthenticatedUser(req, res);
+    if (!user) return;
+
+    const q = typeof req.query.q === "string" ? req.query.q : "";
+    const data = await listSkillCatalogForUser(user.id, q);
+    res.json({ data });
+  } catch (error) {
+    console.error("Failed to fetch skills catalog:", error);
+    res.status(500).json({ error: "Failed to fetch skills catalog" });
+  }
+};
+
+export const saveUserSkillsHandler: RequestHandler = async (req, res) => {
+  const parsed = userSkillsSelectionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.issues[0]?.message || "Invalid skills payload" });
+  }
+
+  try {
+    const user = await getAuthenticatedUser(req, res);
+    if (!user) return;
+
+    const uniqueSkillIds = Array.from(
+      new Set(parsed.data.skillIds.map((id) => id.trim()).filter(Boolean))
+    );
+    const customSkillsByLower = new Map<string, string>();
+    for (const rawName of parsed.data.customSkills) {
+      const trimmedName = rawName.trim();
+      if (!trimmedName) continue;
+      const lower = trimmedName.toLowerCase();
+      if (!customSkillsByLower.has(lower)) {
+        customSkillsByLower.set(lower, trimmedName);
+      }
+    }
+    const catalogById = new Map(DEFAULT_SKILL_CATALOG.map((item) => [item.id, item]));
+    const selectedCatalogNamesLower = new Set(
+      uniqueSkillIds
+        .map((skillId) => catalogById.get(skillId)?.name.toLowerCase())
+        .filter((name): name is string => !!name)
+    );
+    const normalizedCustomSkills = Array.from(customSkillsByLower.entries())
+      .filter(([lower]) => !selectedCatalogNamesLower.has(lower))
+      .map(([, original]) => original);
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`DELETE FROM "UserSkill" WHERE "userId" = ${user.id}`;
+
+        for (const skillId of uniqueSkillIds) {
+          await tx.$executeRaw`
+            INSERT INTO "UserSkill" ("id", "userId", "skillId", "createdAt")
+            SELECT ${randomUUID()}, ${user.id}, s."id", NOW()
+            FROM "SkillCatalog" s
+            WHERE s."id" = ${skillId}
+            ON CONFLICT ("userId", "skillId") DO NOTHING
+          `;
+        }
+
+        for (const customSkillName of normalizedCustomSkills) {
+          await tx.$executeRaw`
+            INSERT INTO "UserSkill" ("id", "userId", "skillId", "customSkillName", "createdAt")
+            VALUES (${randomUUID()}, ${user.id}, NULL, ${customSkillName}, NOW())
+            ON CONFLICT DO NOTHING
+          `;
+        }
+      });
+    } catch (error) {
+      if (!isMissingSkillCatalogTablesError(error)) throw error;
+
+      const selectedCatalogEntries = uniqueSkillIds
+        .map((skillId) => catalogById.get(skillId))
+        .filter((item): item is NonNullable<typeof item> => !!item);
+      const customSkillEntries = normalizedCustomSkills.filter((name) => !!name);
+
+      await prisma.$transaction(async (tx) => {
+        await tx.skillAssessment.deleteMany({ where: { skill: { userId: user.id } } });
+        await tx.skill.deleteMany({ where: { userId: user.id } });
+
+        for (const item of [...selectedCatalogEntries, ...customSkillEntries.map((name) => ({
+          id: `legacy_custom_${slugToId(name)}`,
+          name,
+          icon: "",
+          category: "other",
+        }))]) {
+          const created = await tx.skill.create({
+            data: {
+              userId: user.id,
+              name: item.name,
+              category: mapCatalogCategoryToGoalCategory(item.category),
+            },
+          });
+          await tx.skillAssessment.create({
+            data: {
+              skillId: created.id,
+              rating: 3,
+            },
+          });
+        }
+      });
+    }
+
+    const data = await listSkillCatalogForUser(user.id);
+    res.json({ data });
+  } catch (error) {
+    console.error("Failed to save user skills:", error);
+    res.status(500).json({ error: "Failed to save selected skills" });
+  }
+};
+
 export const tasksSyncHandler: RequestHandler = async (req, res) => {
   const payload = req.body as { tasks?: TaskPayload[] };
   if (!payload || !Array.isArray(payload.tasks)) {
@@ -295,7 +705,8 @@ export const tasksSyncHandler: RequestHandler = async (req, res) => {
   }
 
   try {
-    const user = await ensureDemoUser();
+    const user = await getAuthenticatedUser(req, res);
+    if (!user) return;
 
     await prisma.$transaction(async (tx) => {
       for (const task of payload.tasks!) {
@@ -347,7 +758,9 @@ export const syncHandler: RequestHandler = async (req, res) => {
   }
 
   try {
-    const user = await ensureDemoUser();
+    const user = await getAuthenticatedUser(req, res);
+    if (!user) return;
+
     const syncWarnings: string[] = [];
 
     await prisma.user.update({
@@ -530,7 +943,12 @@ export const syncHandler: RequestHandler = async (req, res) => {
 };
 
 app.get("/api/health", healthHandler);
+app.post("/api/v1/auth/signup", signupHandler);
+app.post("/api/v1/auth/signin", signinHandler);
+app.get("/api/v1/auth/me", meHandler);
 app.get("/api/v1/data", getDataHandler);
+app.get("/api/v1/skills/catalog", getSkillsCatalogHandler);
+app.post("/api/v1/skills/selection", saveUserSkillsHandler);
 app.get("/api/v1/resources/categories", getResourceCategoriesHandler);
 app.get("/api/v1/resources/categories/:slug", getResourcesByCategoryHandler);
 app.post("/api/v1/tasks/sync", tasksSyncHandler);

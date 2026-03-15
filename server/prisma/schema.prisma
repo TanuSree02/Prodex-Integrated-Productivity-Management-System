@@ -68,6 +68,7 @@ model User {
   careerGoals          CareerGoal[]
   jobApplications      JobApplication[]
   skills               Skill[]
+  selectedSkills       UserSkill[]
 }
 
 model Task {
@@ -240,6 +241,35 @@ model SkillAssessment {
   skill         Skill      @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   @@index([skillId, assessedAt])
+}
+
+model SkillCatalog {
+  id            String      @id @default(uuid())
+  name          String      @unique
+  icon          String?
+  category      String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  userSkills    UserSkill[]
+
+  @@index([name])
+  @@index([category, name])
+}
+
+model UserSkill {
+  id            String        @id @default(uuid())
+  userId        String
+  skillId       String?
+  customSkillName String?
+  createdAt     DateTime      @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill         SkillCatalog? @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([skillId])
+  @@index([customSkillName])
 }
 
 model ResourceCategory {

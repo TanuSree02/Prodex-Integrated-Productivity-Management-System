@@ -10,10 +10,20 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    login()
+    setError("")
+    setIsSubmitting(true)
+    try {
+      await login(email.trim(), password)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -65,10 +75,12 @@ export default function LoginPage() {
           </div>
           <button
             type="submit"
+            disabled={isSubmitting}
             className="h-10 rounded-md bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
           >
-            Sign In
+            {isSubmitting ? "Signing in..." : "Sign In"}
           </button>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </form>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {"Don't have an account? "}

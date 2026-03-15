@@ -116,7 +116,7 @@ export default function ResourceCategoryPage() {
         </div>
       ) : (
         <>
-          <section className="rounded-lg border border-border bg-card p-6">
+          <section className="prodex-surface bg-gradient-to-r from-primary/[0.03] via-accent/[0.04] to-primary/[0.03] p-6">
             <h2 className="text-2xl font-semibold text-card-foreground">{category?.name || "Resources"}</h2>
             <p className="mt-2 text-sm text-muted-foreground">{category?.description || "No description available."}</p>
           </section>
@@ -128,7 +128,7 @@ export default function ResourceCategoryPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search resources in this category..."
-              className="h-10 w-full rounded-md border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="prodex-input w-full pl-10"
             />
           </div>
 
@@ -139,7 +139,7 @@ export default function ResourceCategoryPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               {filteredResources.map((resource) => (
-                <article key={resource.id} className="rounded-lg border border-border bg-card p-5 shadow-sm">
+                <article key={resource.id} className="prodex-surface-hover p-5">
                   <div className="mb-2 flex items-start justify-between gap-3">
                     <h3 className="text-base font-semibold text-card-foreground">{resource.title}</h3>
                     <a

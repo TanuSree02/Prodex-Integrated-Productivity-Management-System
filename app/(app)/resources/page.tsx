@@ -52,6 +52,11 @@ export default function ResourcesPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <section className="prodex-surface bg-gradient-to-r from-primary/[0.03] via-accent/[0.04] to-primary/[0.03] p-5">
+        <h2 className="prodex-page-title">Learning Resources</h2>
+        <p className="prodex-page-subtitle">Browse curated categories and open high-value courses, docs, and tutorials.</p>
+      </section>
+
       <div className="relative max-w-xl">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -59,7 +64,7 @@ export default function ResourcesPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search resource categories..."
-          className="h-10 w-full rounded-md border border-input bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="prodex-input w-full pl-10"
         />
       </div>
 
@@ -91,7 +96,7 @@ export default function ResourcesPage() {
             <Link
               key={category.id}
               href={`/resources/${category.slug}`}
-              className="group rounded-lg border border-border bg-card p-5 shadow-sm transition-colors hover:bg-muted/40"
+              className="prodex-surface-hover group p-5 hover:bg-muted/40"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
                 <h3 className="text-base font-semibold text-card-foreground">{category.name}</h3>

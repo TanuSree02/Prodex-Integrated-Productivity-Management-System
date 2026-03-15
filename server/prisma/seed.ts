@@ -43,8 +43,40 @@ async function main() {
   await prisma.applicationEvent.deleteMany({ where: { application: { userId: user.id } } });
   await prisma.jobApplication.deleteMany({ where: { userId: user.id } });
 
+  await prisma.$executeRaw`DELETE FROM "UserSkill" WHERE "userId" = ${user.id}`;
   await prisma.skillAssessment.deleteMany({ where: { skill: { userId: user.id } } });
   await prisma.skill.deleteMany({ where: { userId: user.id } });
+
+  const skillCatalogEntries = [
+    { id: "sc_python", name: "Python", icon: "python", category: "language" },
+    { id: "sc_sql", name: "SQL", icon: "sql", category: "database" },
+    { id: "sc_react", name: "React", icon: "react", category: "frontend" },
+    { id: "sc_nextjs", name: "Next.js", icon: "nextjs", category: "frontend" },
+    { id: "sc_nodejs", name: "Node.js", icon: "nodejs", category: "backend" },
+    { id: "sc_java", name: "Java", icon: "java", category: "language" },
+    { id: "sc_cpp", name: "C++", icon: "cpp", category: "language" },
+    { id: "sc_cloud", name: "Cloud", icon: "cloud", category: "cloud" },
+    { id: "sc_aws", name: "AWS", icon: "aws", category: "cloud" },
+    { id: "sc_docker", name: "Docker", icon: "docker", category: "devops" },
+    { id: "sc_git", name: "Git", icon: "git", category: "tooling" },
+    { id: "sc_postgresql", name: "PostgreSQL", icon: "postgresql", category: "database" },
+    { id: "sc_mongodb", name: "MongoDB", icon: "mongodb", category: "database" },
+    { id: "sc_api", name: "API", icon: "api", category: "backend" },
+    { id: "sc_ml", name: "Machine Learning", icon: "machine-learning", category: "ai" },
+    { id: "sc_data_science", name: "Data Science", icon: "data-science", category: "ai" },
+  ];
+
+  for (const entry of skillCatalogEntries) {
+    await prisma.$executeRaw`
+      INSERT INTO "SkillCatalog" ("id", "name", "icon", "category", "createdAt", "updatedAt")
+      VALUES (${entry.id}, ${entry.name}, ${entry.icon}, ${entry.category}, NOW(), NOW())
+      ON CONFLICT ("name")
+      DO UPDATE SET
+        "icon" = EXCLUDED."icon",
+        "category" = EXCLUDED."category",
+        "updatedAt" = NOW()
+    `;
+  }
 
   await prisma.task.createMany({
     data: [
@@ -146,6 +178,15 @@ async function main() {
       },
     },
   });
+
+  await prisma.$executeRaw`
+    INSERT INTO "UserSkill" ("id", "userId", "skillId", "createdAt")
+    VALUES
+      ('us1', ${user.id}, 'sc_python', NOW()),
+      ('us2', ${user.id}, 'sc_react', NOW()),
+      ('us3', ${user.id}, 'sc_sql', NOW())
+    ON CONFLICT ("userId", "skillId") DO NOTHING
+  `;
 
   await prisma.resource.deleteMany();
   await prisma.resourceCategory.deleteMany();
